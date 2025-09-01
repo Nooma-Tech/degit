@@ -1,5 +1,13 @@
 # @nooma-tech/degit changelog
 
+## 1.2.1
+
+* Add comprehensive npx usage documentation
+  * Add Quick Start section with npx examples
+  * Document npx as recommended usage method (always latest version)
+  * Include examples for template scaffolding and private repositories
+  * Improve installation section with multiple options
+
 ## 1.2.0
 
 * **NEW**: Complete template system implementation

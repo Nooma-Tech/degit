@@ -25,13 +25,41 @@ _Requires Node 16 or above, because `async` and `await` are the cat's pyjamas_
 
 ## Installation
 
+### Global Installation
 ```bash
 npm install -g @nooma-tech/degit
 ```
 
-Or use the original package:
+### Use with npx (Recommended)
+```bash
+# No installation required - always uses latest version
+npx @nooma-tech/degit user/repo my-project
+
+# With options
+npx @nooma-tech/degit --mode=git-https user/private-repo my-project
+
+# Interactive template scaffolding
+npx @nooma-tech/degit Nooma-Tech/n8n-nodes-starter-kit my-n8n-node
+```
+
+### Original Package
 ```bash
 npm install -g degit
+```
+
+## Quick Start
+
+The fastest way to use degit is with npx:
+
+```bash
+# Clone a simple repository
+npx @nooma-tech/degit user/repo
+
+# Clone with interactive template processing
+npx @nooma-tech/degit Nooma-Tech/n8n-nodes-starter-kit my-new-node
+
+# Clone private repository via HTTPS
+npx @nooma-tech/degit --mode=git-https your-org/private-template my-project
 ```
 
 ## Usage

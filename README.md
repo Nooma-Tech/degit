@@ -1,19 +1,32 @@
-# degit — straightforward project scaffolding
+# @nooma-tech/degit — straightforward project scaffolding
 
-[![Travis CI build status](https://badgen.net/travis/Rich-Harris/degit/master)](https://travis-ci.org/Rich-Harris/degit)
-[![AppVeyor build status](https://badgen.net/appveyor/ci/Rich-Harris/degit/master)](https://ci.appveyor.com/project/Rich-Harris/degit/branch/master)
-[![Known Vulnerabilities](https://snyk.io/test/npm/degit/badge.svg)](https://snyk.io/test/npm/degit)
-[![install size](https://badgen.net/packagephobia/install/degit)](https://packagephobia.now.sh/result?p=degit)
-[![npm package version](https://badgen.net/npm/v/degit)](https://npm.im/degit)
+[![CI](https://github.com/Nooma-Tech/degit/actions/workflows/ci.yml/badge.svg)](https://github.com/Nooma-Tech/degit/actions/workflows/ci.yml)
+[![npm package version](https://badgen.net/npm/v/@nooma-tech/degit)](https://npm.im/@nooma-tech/degit)
+[![install size](https://badgen.net/packagephobia/install/@nooma-tech/degit)](https://packagephobia.now.sh/result?p=@nooma-tech/degit)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v1.4%20adopted-ff69b4.svg)](CODE_OF_CONDUCT.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
+> **Note**: This is an enhanced and security-updated fork of the original [degit](https://github.com/Rich-Harris/degit) by Rich Harris. All credit goes to the original author for creating this amazing tool. This fork includes security updates, dependency upgrades, and modern tooling improvements.
+
 **degit** makes copies of git repositories. When you run `degit some-user/some-repo`, it will find the latest commit on https://github.com/some-user/some-repo and download the associated tar file to `~/.degit/some-user/some-repo/commithash.tar.gz` if it doesn't already exist locally. (This is much quicker than using `git clone`, because you're not downloading the entire git history.)
 
-_Requires Node 8 or above, because `async` and `await` are the cat's pyjamas_
+_Requires Node 16 or above, because `async` and `await` are the cat's pyjamas_
+
+## What's New in This Fork
+
+- 🔒 **Security Updates**: All dependencies updated to secure versions
+- 🚀 **Modern Node.js**: Updated to require Node 16+ with latest tooling
+- 🔧 **Build Improvements**: Enhanced build process and CI/CD pipelines
+- 📦 **NPM Organization**: Published under `@nooma-tech` scope
+- ✅ **GitHub Actions**: Modern CI/CD with automated releases
 
 ## Installation
 
+```bash
+npm install -g @nooma-tech/degit
+```
+
+Or use the original package:
 ```bash
 npm install -g degit
 ```
@@ -115,7 +128,7 @@ A few salient differences:
 You can also use degit inside a Node script:
 
 ```js
-const degit = require('degit');
+const degit = require('@nooma-tech/degit');
 
 const emitter = degit('user/repo', {
 	cache: true,

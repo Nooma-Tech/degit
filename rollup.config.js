@@ -16,6 +16,6 @@ export default {
 		exports: 'auto',
 		sourcemap: true
 	},
-	external: Object.keys(pkg.dependencies || {}).concat(builtinModules),
+	external: Object.keys(pkg.dependencies || {}).concat(builtinModules).concat(['glob']),
 	plugins: [resolve(), commonjs()]
 };

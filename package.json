@@ -1,8 +1,8 @@
 {
-	"name": "degit",
-	"version": "2.8.4",
+	"name": "@nooma-tech/degit",
+	"version": "1.0.0",
 	"engines": {
-		"node": ">=8.0.0"
+		"node": ">=16.0.0"
 	},
 	"description": "Straightforward project scaffolding",
 	"main": "dist/index.js",
@@ -19,7 +19,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/Rich-Harris/degit.git"
+		"url": "git+https://github.com/Nooma-Tech/degit.git"
 	},
 	"keywords": [
 		"scaffolding",
@@ -27,11 +27,18 @@
 		"git"
 	],
 	"author": "Rich Harris",
+	"contributors": [
+		"Nooma Tech"
+	],
 	"license": "MIT",
 	"bugs": {
-		"url": "https://github.com/Rich-Harris/degit/issues"
+		"url": "https://github.com/Nooma-Tech/degit/issues"
 	},
-	"homepage": "https://github.com/Rich-Harris/degit#readme",
+	"homepage": "https://github.com/Nooma-Tech/degit#readme",
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org/"
+	},
 	"devDependencies": {
 		"@rollup/plugin-commonjs": "18.0.0",
 		"@rollup/plugin-node-resolve": "11.2.1",
@@ -45,15 +52,15 @@
 		"https-proxy-agent": "5.0.0",
 		"husky": "6.0.0",
 		"lint-staged": "10.5.4",
-		"mocha": "8.3.2",
+		"mocha": "^10.6.0",
 		"mri": "1.1.6",
 		"prettier": "2.2.1",
 		"rimraf": "3.0.2",
-		"rollup": "2.44.0",
+		"rollup": "^2.79.2",
 		"rollup-plugin-commonjs": "10.1.0",
 		"sander": "0.6.0",
 		"source-map-support": "0.5.19",
-		"tar": "6.1.0",
+		"tar": "^6.2.1",
 		"tiny-glob": "0.2.8"
 	},
 	"files": [

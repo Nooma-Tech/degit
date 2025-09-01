@@ -320,7 +320,7 @@ class DirectiveProcessor {
 
 		for (const renameRule of files) {
 			const { from, to } = renameRule;
-			
+
 			if (from === '**/*.tmpl') {
 				this.handleTmplRename(dest);
 			} else if (from.includes('*')) {
@@ -333,7 +333,7 @@ class DirectiveProcessor {
 
 	handleTmplRename(dest) {
 		const tmplFiles = glob('**/*.tmpl', { cwd: dest, absolute: true });
-		
+
 		tmplFiles.forEach(filePath => {
 			const newPath = filePath.replace(/\.tmpl$/, '');
 			this.moveFile(filePath, newPath);
@@ -390,18 +390,18 @@ class DirectiveProcessor {
 		if (pattern === '**/*.tmpl') {
 			return filePath.replace(/\.tmpl$/, '');
 		}
-		
+
 		if (pattern === '**/*') {
 			return this.processTemplate(toPattern);
 		}
-		
+
 		const patternRegex = pattern.replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
 		const regex = new RegExp(`^${patternRegex}$`);
-		
+
 		if (regex.test(filePath)) {
 			return this.processTemplate(toPattern);
 		}
-		
+
 		return filePath;
 	}
 

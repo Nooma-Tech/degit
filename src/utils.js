@@ -19,31 +19,29 @@ export class DegitError extends Error {
 	}
 }
 
-export function tryRequire(file, opts) {
+export const tryRequire = (file, opts = {}) => {
 	try {
-		if (opts && opts.clearCache === true) {
+		if (opts.clearCache) {
 			delete require.cache[require.resolve(file)];
 		}
 		return require(file);
-	} catch (err) {
+	} catch {
 		return null;
 	}
-}
+};
 
-export function exec(command) {
-	return new Promise((fulfil, reject) => {
+export const exec = command => 
+	new Promise((resolve, reject) => {
 		child_process.exec(command, (err, stdout, stderr) => {
 			if (err) {
 				reject(err);
 				return;
 			}
-
-			fulfil({ stdout, stderr });
+			resolve({ stdout, stderr });
 		});
 	});
-}
 
-export function mkdirp(dir) {
+export const mkdirp = dir => {
 	const parent = path.dirname(dir);
 	if (parent === dir) return;
 
@@ -54,74 +52,97 @@ export function mkdirp(dir) {
 	} catch (err) {
 		if (err.code !== 'EEXIST') throw err;
 	}
-}
+};
 
-export function fetch(url, dest, proxy) {
-	return new Promise((fulfil, reject) => {
-		let options = url;
+const createHttpsOptions = (url, proxy) => {
+	if (!proxy) return url;
+	
+	const parsedUrl = URL.parse(url);
+	return {
+		hostname: parsedUrl.host,
+		path: parsedUrl.path,
+		agent: new Agent(proxy)
+	};
+};
 
-		if (proxy) {
-			const parsedUrl = URL.parse(url);
-			options = {
-				hostname: parsedUrl.host,
-				path: parsedUrl.path,
-				agent: new Agent(proxy)
-			};
-		}
+const handleHttpResponse = (response, dest, proxy, resolve, reject) => {
+	const { statusCode: code, statusMessage: message, headers } = response;
+	
+	if (code >= 400) {
+		reject({ code, message });
+		return;
+	}
+	
+	if (code >= 300) {
+		fetch(headers.location, dest, proxy).then(resolve, reject);
+		return;
+	}
+	
+	response
+		.pipe(fs.createWriteStream(dest))
+		.on('finish', resolve)
+		.on('error', reject);
+};
 
+export const fetch = (url, dest, proxy) => 
+	new Promise((resolve, reject) => {
+		const options = createHttpsOptions(url, proxy);
+		
 		https
-			.get(options, response => {
-				const code = response.statusCode;
-				if (code >= 400) {
-					reject({ code, message: response.statusMessage });
-				} else if (code >= 300) {
-					fetch(response.headers.location, dest, proxy).then(fulfil, reject);
-				} else {
-					response
-						.pipe(fs.createWriteStream(dest))
-						.on('finish', () => fulfil())
-						.on('error', reject);
-				}
-			})
+			.get(options, response => 
+				handleHttpResponse(response, dest, proxy, resolve, reject)
+			)
 			.on('error', reject);
 	});
-}
 
-export function stashFiles(dir, dest) {
+const moveFile = (source, target) => {
+	const isDirectory = fs.lstatSync(source).isDirectory();
+	
+	if (isDirectory) {
+		copydirSync(source).to(target);
+		rimrafSync(source);
+	} else {
+		fs.copyFileSync(source, target);
+		fs.unlinkSync(source);
+	}
+};
+
+export const stashFiles = (dir, dest) => {
 	const tmpDir = path.join(dir, tmpDirName);
 	rimrafSync(tmpDir);
 	mkdirp(tmpDir);
+	
 	fs.readdirSync(dest).forEach(file => {
 		const filePath = path.join(dest, file);
 		const targetPath = path.join(tmpDir, file);
-		const isDir = fs.lstatSync(filePath).isDirectory();
-		if (isDir) {
-			copydirSync(filePath).to(targetPath);
-			rimrafSync(filePath);
-		} else {
-			fs.copyFileSync(filePath, targetPath);
-			fs.unlinkSync(filePath);
-		}
+		moveFile(filePath, targetPath);
 	});
-}
+};
 
-export function unstashFiles(dir, dest) {
+const restoreFile = (source, target, filename) => {
+	const isDirectory = fs.lstatSync(source).isDirectory();
+	
+	if (isDirectory) {
+		copydirSync(source).to(target);
+		rimrafSync(source);
+	} else {
+		if (filename !== 'degit.json') {
+			fs.copyFileSync(source, target);
+		}
+		fs.unlinkSync(source);
+	}
+};
+
+export const unstashFiles = (dir, dest) => {
 	const tmpDir = path.join(dir, tmpDirName);
+	
 	fs.readdirSync(tmpDir).forEach(filename => {
 		const tmpFile = path.join(tmpDir, filename);
 		const targetPath = path.join(dest, filename);
-		const isDir = fs.lstatSync(tmpFile).isDirectory();
-		if (isDir) {
-			copydirSync(tmpFile).to(targetPath);
-			rimrafSync(tmpFile);
-		} else {
-			if (filename !== 'degit.json') {
-				fs.copyFileSync(tmpFile, targetPath);
-			}
-			fs.unlinkSync(tmpFile);
-		}
+		restoreFile(tmpFile, targetPath, filename);
 	});
+	
 	rimrafSync(tmpDir);
-}
+};
 
 export const base = path.join(homeOrTmp, '.degit');

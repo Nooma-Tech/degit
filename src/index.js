@@ -315,30 +315,40 @@ class DirectiveProcessor {
 		});
 	}
 
-	async handleRename(dir, dest, action) {
+		async handleRename(dir, dest, action) {
 		const { files = [] } = action;
 
 		for (const renameRule of files) {
 			const { from, to } = renameRule;
-			const processedTo = this.processTemplate(to);
-
-			if (from.includes('*')) {
-				this.handleGlobRename(dest, from, processedTo);
+			
+			if (from === '**/*.tmpl') {
+				this.handleTmplRename(dest);
+			} else if (from.includes('*')) {
+				this.handleGlobRename(dest, from, to);
 			} else {
-				this.handleSingleRename(dest, from, processedTo);
+				this.handleSingleRename(dest, from, to);
 			}
 		}
 	}
 
+	handleTmplRename(dest) {
+		const tmplFiles = glob('**/*.tmpl', { cwd: dest, absolute: true });
+		
+		tmplFiles.forEach(filePath => {
+			const newPath = filePath.replace(/\.tmpl$/, '');
+			this.moveFile(filePath, newPath);
+		});
+	}
+
 	handleGlobRename(dest, pattern, toPattern) {
-		const matches = glob(pattern, { cwd: dest, absolute: true });
+		const matches = glob(pattern, { cwd: dest, absolute: false });
 
-		matches.forEach(filePath => {
-			const relativePath = path.relative(dest, filePath);
-			const newName = this.applyRenamePattern(relativePath, pattern, toPattern);
-			const newPath = path.join(dest, newName);
+		matches.forEach(relativePath => {
+			const filePath = path.resolve(dest, relativePath);
+			const processedTo = this.processTemplate(toPattern);
+			const newPath = path.resolve(dest, processedTo);
 
-			if (newPath !== filePath) {
+			if (newPath !== filePath && fs.existsSync(filePath)) {
 				this.moveFile(filePath, newPath);
 			}
 		});
@@ -346,10 +356,16 @@ class DirectiveProcessor {
 
 	handleSingleRename(dest, from, to) {
 		const fromPath = path.resolve(dest, from);
-		const toPath = path.resolve(dest, to);
+		const processedTo = this.processTemplate(to);
+		const toPath = path.resolve(dest, processedTo);
 
 		if (fs.existsSync(fromPath)) {
 			this.moveFile(fromPath, toPath);
+		} else {
+			this.degit._warn({
+				code: 'RENAME_SOURCE_NOT_FOUND',
+				message: `Cannot rename ${from}: file or directory not found`
+			});
 		}
 	}
 
@@ -370,12 +386,23 @@ class DirectiveProcessor {
 		}
 	}
 
-	applyRenamePattern(filePath, pattern, toPattern) {
-		if (pattern.includes('**/*.tmpl')) {
+		applyRenamePattern(filePath, pattern, toPattern) {
+		if (pattern === '**/*.tmpl') {
 			return filePath.replace(/\.tmpl$/, '');
 		}
-
-		return this.processTemplate(toPattern);
+		
+		if (pattern === '**/*') {
+			return this.processTemplate(toPattern);
+		}
+		
+		const patternRegex = pattern.replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*');
+		const regex = new RegExp(`^${patternRegex}$`);
+		
+		if (regex.test(filePath)) {
+			return this.processTemplate(toPattern);
+		}
+		
+		return filePath;
 	}
 
 	processTemplate(template) {

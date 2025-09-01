@@ -133,8 +133,8 @@ class CacheService {
 		if (!isHashUsed) {
 			try {
 				fs.unlinkSync(path.join(dir, `${oldHash}.tar.gz`));
-			} catch {
-				// ignore cleanup errors
+			} catch (err) {
+				void err;
 			}
 		}
 	}
@@ -318,13 +318,10 @@ class DirectiveProcessor {
 			async handleRename(dir, dest, action) {
 		const { files = [] } = action;
 
-		// Separar regras de renomeação por tipo
 		const tmplRules = files.filter(rule => rule.from === '**/*.tmpl');
 		const fileRules = files.filter(rule => rule.from !== '**/*.tmpl' && !this.isDirectoryRule(rule.from));
 		const dirRules = files.filter(rule => rule.from !== '**/*.tmpl' && this.isDirectoryRule(rule.from));
-
-		// Ordem: 1) .tmpl files, 2) files específicos, 3) diretórios
-		for (const rule of tmplRules) {
+		if (tmplRules.length > 0) {
 			this.handleTmplRename(dest);
 		}
 
@@ -338,7 +335,6 @@ class DirectiveProcessor {
 	}
 
 	isDirectoryRule(fromPath) {
-		// Se não tem extensão e não tem * é provavelmente um diretório
 		return !path.extname(fromPath) && !fromPath.includes('*');
 	}
 

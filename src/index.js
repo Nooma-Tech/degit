@@ -341,14 +341,14 @@ class DirectiveProcessor {
 		for (const replacement of replacements) {
 			const { from, to } = replacement;
 			const processedTo = this.processTemplate(to);
-			
+
 			await this.renameRecursively(dest, from, processedTo);
 		}
 	}
 
 	async renameRecursively(dest, fromPattern, toPattern) {
 		const allItems = glob('**/*', { cwd: dest, absolute: false });
-		
+
 		const itemsToRename = allItems
 			.filter(item => item.includes(fromPattern))
 			.sort((a, b) => b.split('/').length - a.split('/').length);
@@ -362,7 +362,7 @@ class DirectiveProcessor {
 				try {
 					mkdirp(path.dirname(newPath));
 					fs.renameSync(oldPath, newPath);
-					
+
 					this.degit._info({
 						code: 'RECURSIVE_RENAME',
 						message: `Renamed: ${item} → ${newItem}`

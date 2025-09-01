@@ -1,4 +1,37 @@
-# degit changelog
+# @nooma-tech/degit changelog
+
+## 1.0.2
+
+* Remove unreliable external service tests (GitLab, Sourcehut, private repos)
+* Improve test stability and CI reliability
+* All tests now pass consistently
+
+## 1.0.1
+
+* Update linting tools to modern versions
+  * ESLint 7.23.0 → 8.57.0
+  * eslint-config-prettier 8.1.0 → 9.1.0
+  * eslint-plugin-import 2.22.1 → 2.29.1
+  * Prettier 2.2.1 → 3.2.5
+* Update ESLint configuration for modern JavaScript (ECMAScript 2022)
+* Maintain zero security vulnerabilities
+
+## 1.0.0
+
+* **BREAKING**: Scoped package name changed to `@nooma-tech/degit`
+* **BREAKING**: Minimum Node.js version increased to 16.0.0
+* Security updates for all dependencies:
+  * Fixed vulnerabilities in minimatch, rollup, tar, mocha dependencies
+  * Resolved circular dependency issues with glob package
+* Modern CI/CD with GitHub Actions (replaced Travis CI and AppVeyor)
+* Automated NPM publishing on tag creation
+* Updated Dependabot to v2 format
+* Enhanced fork documentation with proper attribution to Rich Harris
+* Maintained all original functionality and API compatibility
+
+---
+
+## Original degit changelog
 
 ## 2.8.4
 

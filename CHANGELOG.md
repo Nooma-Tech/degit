@@ -1,6 +1,13 @@
 # @nooma-tech/degit changelog
 
-## 1.0.3
+## 1.1.1
+
+* Fix GitHub Actions release workflow
+  * Remove duplicate version update step that was causing "Version not changed" errors
+  * Workflow now correctly assumes package.json version is already updated by local npm version command
+  * Improve release process reliability for future versions
+
+## 1.1.0
 
 * **NEW**: Add support for Git HTTPS mode for private repositories
   * New `--mode=git-https` option for cloning private repos via HTTPS

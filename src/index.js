@@ -170,6 +170,7 @@ class DirectiveProcessor {
 			remove: this.handleRemove.bind(this),
 			template: this.handleTemplate.bind(this),
 			rename: this.handleRename.bind(this),
+			recursiveRename: this.handleRecursiveRename.bind(this),
 			prompt: this.handlePrompt.bind(this),
 			script: this.handleScript.bind(this),
 			preScript: this.handlePreScript.bind(this),
@@ -331,6 +332,48 @@ class DirectiveProcessor {
 
 		for (const rule of dirRules) {
 			this.handleSingleRename(dest, rule.from, rule.to);
+		}
+	}
+
+	async handleRecursiveRename(dir, dest, action) {
+		const { replacements = [] } = action;
+
+		for (const replacement of replacements) {
+			const { from, to } = replacement;
+			const processedTo = this.processTemplate(to);
+			
+			await this.renameRecursively(dest, from, processedTo);
+		}
+	}
+
+	async renameRecursively(dest, fromPattern, toPattern) {
+		const allItems = glob('**/*', { cwd: dest, absolute: false });
+		
+		const itemsToRename = allItems
+			.filter(item => item.includes(fromPattern))
+			.sort((a, b) => b.split('/').length - a.split('/').length);
+
+		for (const item of itemsToRename) {
+			const oldPath = path.resolve(dest, item);
+			const newItem = item.replace(new RegExp(fromPattern, 'g'), toPattern);
+			const newPath = path.resolve(dest, newItem);
+
+			if (oldPath !== newPath && fs.existsSync(oldPath)) {
+				try {
+					mkdirp(path.dirname(newPath));
+					fs.renameSync(oldPath, newPath);
+					
+					this.degit._info({
+						code: 'RECURSIVE_RENAME',
+						message: `Renamed: ${item} → ${newItem}`
+					});
+				} catch (err) {
+					this.degit._warn({
+						code: 'RECURSIVE_RENAME_ERROR',
+						message: `Failed to rename ${item}: ${err.message}`
+					});
+				}
+			}
 		}
 	}
 

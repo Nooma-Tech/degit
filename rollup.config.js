@@ -16,6 +16,6 @@ export default {
 		exports: 'auto',
 		sourcemap: true
 	},
-	external: Object.keys(pkg.dependencies || {}).concat(builtinModules).concat(['glob']),
+	external: Object.keys(pkg.dependencies || {}).concat(builtinModules).concat(['glob', 'tiny-glob/sync.js', 'tiny-glob']),
 	plugins: [resolve(), commonjs()]
 };

@@ -25,7 +25,7 @@ const formatHelp = content =>
 		.replace(/`([^`]+)`/g, (m, _) => chalk.cyan(_));
 
 const showHelp = () => {
-	const helpPath = path.join(__dirname, 'help.md');
+	const helpPath = path.resolve(process.cwd(), 'help.md');
 	const help = fs.readFileSync(helpPath, 'utf-8');
 	process.stdout.write(`\n${formatHelp(help)}\n`);
 };

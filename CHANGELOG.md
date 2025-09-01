@@ -1,5 +1,16 @@
 # @nooma-tech/degit changelog
 
+## 1.0.3
+
+* **NEW**: Add support for Git HTTPS mode for private repositories
+  * New `--mode=git-https` option for cloning private repos via HTTPS
+  * Maintains backward compatibility: `--mode=git` still works (maps to `git-ssh`)
+  * Support for local Git credentials (useful for private repos with HTTPS auth)
+* **BREAKING**: Valid modes now include: `tar`, `git`, `git-ssh`, `git-https`
+* Update documentation with new Git authentication methods
+* Add comprehensive tests for new Git modes
+* Fix help.md to reference correct repository URL
+
 ## 1.0.2
 
 * Remove unreliable external service tests (GitLab, Sourcehut, private repos)

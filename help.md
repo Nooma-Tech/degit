@@ -54,6 +54,9 @@ Options:
   `--force`,   `-f`  Allow non-empty destination directory
   `--verbose`, `-v`  Extra logging
   `--mode=`,   `-m=` Force the mode by which degit clones the repo
-                     Valid options are `tar` or `git` (uses SSH)
+                     Valid options are:
+                     - `tar` (default): Download via tarball
+                     - `git` or `git-ssh`: Clone via SSH (for private repos with SSH keys)
+                     - `git-https`: Clone via HTTPS (for private repos with local Git credentials)
 
-See https://github.com/Rich-Harris/degit for more information
+See https://github.com/Nooma-Tech/degit for more information

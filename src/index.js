@@ -16,7 +16,7 @@ import {
 	base
 } from './utils.js';
 
-const validModes = new Set(['tar', 'git']);
+const validModes = new Set(['tar', 'git', 'git-ssh', 'git-https']);
 const supportedSites = new Set(['github', 'gitlab', 'bitbucket', 'git.sr.ht']);
 
 export default function degit(src, opts) {
@@ -240,7 +240,7 @@ class Degit extends EventEmitter {
 		this.proxy = process.env.https_proxy;
 
 		this.repo = RepoParser.parse(src);
-		this.mode = opts.mode || this.repo.mode;
+		this.mode = this.normalizeMode(opts.mode || this.repo.mode);
 
 		if (!validModes.has(this.mode)) {
 			throw new Error(`Valid modes are ${Array.from(validModes).join(', ')}`);
@@ -248,6 +248,11 @@ class Degit extends EventEmitter {
 
 		this._hasStashed = false;
 		this.directiveProcessor = new DirectiveProcessor(this);
+	}
+
+	normalizeMode(mode) {
+		if (mode === 'git') return 'git-ssh';
+		return mode;
 	}
 
 	async clone(dest) {
@@ -258,8 +263,10 @@ class Degit extends EventEmitter {
 
 		if (this.mode === 'tar') {
 			await this.cloneWithTar(dir, dest);
-		} else {
-			await this.cloneWithGit(dir, dest);
+		} else if (this.mode === 'git-ssh') {
+			await this.cloneWithGitSsh(dir, dest);
+		} else if (this.mode === 'git-https') {
+			await this.cloneWithGitHttps(dir, dest);
 		}
 
 		this._info({
@@ -426,8 +433,13 @@ class Degit extends EventEmitter {
 		}
 	}
 
-	async cloneWithGit(dir, dest) {
+	async cloneWithGitSsh(dir, dest) {
 		await exec(`git clone ${this.repo.ssh} ${dest}`);
+		await exec(`rm -rf ${path.resolve(dest, '.git')}`);
+	}
+
+	async cloneWithGitHttps(dir, dest) {
+		await exec(`git clone ${this.repo.url} ${dest}`);
 		await exec(`rm -rf ${path.resolve(dest, '.git')}`);
 	}
 

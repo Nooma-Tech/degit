@@ -97,9 +97,20 @@ If you have an `https_proxy` environment variable, Degit will use it.
 
 ### Private repositories
 
-Private repos can be cloned by specifying `--mode=git` (the default is `tar`). In this mode, Degit will use `git` under the hood. It's much slower than fetching a tarball, which is why it's not the default.
+Private repos can be cloned using Git modes instead of the default `tar` mode:
 
-Note: this clones over SSH, not HTTPS.
+**SSH Mode (requires SSH keys):**
+```bash
+degit --mode=git user/private-repo        # or --mode=git-ssh
+degit --mode=git-ssh user/private-repo
+```
+
+**HTTPS Mode (uses local Git credentials):**
+```bash
+degit --mode=git-https user/private-repo
+```
+
+Git modes are slower than fetching a tarball, which is why `tar` remains the default for public repositories.
 
 ### See all options
 
@@ -107,9 +118,12 @@ Note: this clones over SSH, not HTTPS.
 degit --help
 ```
 
-## Not supported
+## Enhanced Features
 
-- Private repositories
+- ✅ **Private repositories** - Now supported via `--mode=git-ssh` or `--mode=git-https`
+- ✅ **Multiple Git authentication methods** - SSH keys or HTTPS credentials
+- ✅ **Security updates** - All dependencies updated to secure versions
+- ✅ **Modern tooling** - GitHub Actions CI/CD, Dependabot v2, ESLint 8.x
 
 Pull requests are very welcome!
 

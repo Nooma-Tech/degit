@@ -182,7 +182,19 @@ describe('degit', function() {
 		});
 	});
 
-	// Git mode tests removed due to private repository access requirements
+	describe('git modes', () => {
+		it('clones public repo using git-https mode', async () => {
+			await exec(`node ${degitPath} --mode=git-https Rich-Harris/degit-test-repo .tmp/test-repo -v`);
+			compare('.tmp/test-repo', {
+				'file.txt': 'hello from github!',
+				subdir: null,
+				'subdir/file.txt': 'hello from a subdirectory!'
+			});
+		});
+
+		// Note: git-ssh and git modes require SSH keys configured
+		// These are tested manually and work when proper SSH setup is available
+	});
 });
 
 function read(file) {

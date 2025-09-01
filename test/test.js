@@ -10,7 +10,7 @@ const child_process = require('child_process');
 const degit = require('../dist/index.js');
 const degitPath = path.resolve('dist/bin.js');
 
-const timeout = 30000;
+const timeout = process.env.CI ? 60000 : 30000;
 
 function exec(cmd) {
 	return new Promise((fulfil, reject) => {

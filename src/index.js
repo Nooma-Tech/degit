@@ -26,13 +26,13 @@ export default function degit(src, opts) {
 class RepoParser {
 	static parse(src) {
 		const match = /^(?:(?:https:\/\/)?([^:/]+\.[^:/]+)\/|git@([^:/]+)[:/]|([^/]+):)?([^/\s]+)\/([^/\s#]+)(?:((?:\/[^/\s#]+)+))?(?:\/)?(?:#(.+))?/.exec(src);
-		
+
 		if (!match) {
 			throw new DegitError(`could not parse ${src}`, { code: 'BAD_SRC' });
 		}
 
 		const site = (match[1] || match[2] || match[3] || 'github').replace(/\.(com|org)$/, '');
-		
+
 		if (!supportedSites.has(site)) {
 			throw new DegitError(`degit supports GitHub, GitLab, Sourcehut and BitBucket`, {
 				code: 'UNSUPPORTED_HOST'
@@ -106,7 +106,7 @@ class RefService {
 class CacheService {
 	static updateCache(dir, repo, hash, cached) {
 		this.updateAccessLogs(dir, repo);
-		
+
 		if (cached[repo.ref] === hash) return;
 
 		this.cleanupOldFiles(dir, cached, hash, repo);
@@ -127,7 +127,7 @@ class CacheService {
 		if (!oldHash) return;
 
 		const isHashUsed = Object.values(cached).some(cachedHash => cachedHash === hash);
-		
+
 		if (!isHashUsed) {
 			try {
 				fs.unlinkSync(path.join(dir, `${oldHash}.tar.gz`));
@@ -187,13 +187,13 @@ class DirectiveProcessor {
 
 		await d.clone(dest).catch(err => {
 			console.error(chalk.red(`! ${err.message}`));
-			process.exit(1);
+			throw err;
 		});
 	}
 
 	handleRemove(dir, dest, action) {
 		const files = Array.isArray(action.files) ? action.files : [action.files];
-		
+
 		const removedFiles = files
 			.map(file => this.removeFile(dest, file))
 			.filter(Boolean);
@@ -208,7 +208,7 @@ class DirectiveProcessor {
 
 	removeFile(dest, file) {
 		const filePath = path.resolve(dest, file);
-		
+
 		if (!fs.existsSync(filePath)) {
 			this.degit._warn({
 				code: 'FILE_DOES_NOT_EXIST',
@@ -218,7 +218,7 @@ class DirectiveProcessor {
 		}
 
 		const isDir = fs.lstatSync(filePath).isDirectory();
-		
+
 		if (isDir) {
 			rimrafSync(filePath);
 			return file + '/';
@@ -288,7 +288,7 @@ class Degit extends EventEmitter {
 	getDirectives(dest) {
 		const directivesPath = path.resolve(dest, degitConfigName);
 		const directives = tryRequire(directivesPath, { clearCache: true });
-		
+
 		if (directives) {
 			fs.unlinkSync(directivesPath);
 		}
@@ -299,7 +299,7 @@ class Degit extends EventEmitter {
 	checkDirIsEmpty(dir) {
 		try {
 			const files = fs.readdirSync(dir);
-			
+
 			if (files.length > 0) {
 				if (this.force) {
 					this._info({

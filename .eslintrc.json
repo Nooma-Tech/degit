@@ -28,7 +28,14 @@
 		"prettier"
 	],
 	"parserOptions": {
-		"ecmaVersion": 8,
+		"ecmaVersion": 2022,
 		"sourceType": "module"
+	},
+	"settings": {
+		"import/resolver": {
+			"node": {
+				"extensions": [".js", ".json"]
+			}
+		}
 	}
 }

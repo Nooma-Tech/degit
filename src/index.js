@@ -429,7 +429,7 @@ class DirectiveProcessor {
 
 		for (const command of commands) {
 			const processedCommand = this.processTemplate(command);
-			
+
 			this.degit._verbose({
 				code: 'EXECUTING_COMMAND',
 				message: `Executing: ${processedCommand} (in ${cwd})`
@@ -437,7 +437,7 @@ class DirectiveProcessor {
 
 			try {
 				const result = await this.executeCommand(processedCommand, cwd);
-				
+
 				if (result.stdout) {
 					this.degit._verbose({
 						code: 'COMMAND_OUTPUT',
@@ -454,7 +454,7 @@ class DirectiveProcessor {
 					code: 'COMMAND_ERROR',
 					message: `❌ Command failed: ${processedCommand} - ${err.message}`
 				});
-				
+
 				if (action.failOnError !== false) {
 					throw new DegitError(`Script execution failed: ${processedCommand}`, {
 						code: 'SCRIPT_ERROR',
@@ -469,7 +469,7 @@ class DirectiveProcessor {
 	async executeCommand(command, cwd) {
 		return new Promise((resolve, reject) => {
 			const child_process = require('child_process');
-			
+
 			child_process.exec(command, { cwd }, (error, stdout, stderr) => {
 				if (error) {
 					reject(error);

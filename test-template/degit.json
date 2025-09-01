@@ -1,0 +1,38 @@
+[
+  {
+    "action": "prompt",
+    "message": "Configure test template",
+    "variables": [
+      {
+        "name": "PROJECT_NAME",
+        "message": "Enter project name:",
+        "type": "input",
+        "default": "MyProject"
+      }
+    ]
+  },
+  {
+    "action": "template",
+    "replacements": [
+      {
+        "from": "PLACEHOLDER_NAME",
+        "to": "{{PROJECT_NAME}}"
+      }
+    ]
+  },
+  {
+    "action": "rename",
+    "files": [
+      {
+        "from": "template.txt.tmpl",
+        "to": "{{PROJECT_NAME}}.txt"
+      }
+    ]
+  },
+  {
+    "action": "remove",
+    "files": [
+      "degit.json"
+    ]
+  }
+]

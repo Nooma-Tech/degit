@@ -1,5 +1,23 @@
 # @nooma-tech/degit changelog
 
+## 1.2.0
+
+* **NEW**: Complete template system implementation
+  * Interactive prompts with `prompt` action for collecting template variables
+  * Template processing with `template` action for text replacement
+  * Advanced file operations with `rename` action supporting glob patterns
+  * Variable substitution with `{{VARIABLE_NAME}}` syntax
+  * Support for multiple file extensions and complex scaffolding workflows
+  * Script execution with `script`, `preScript`, and `postScript` actions
+  * Command execution with template variable support and error handling
+* **FEATURE**: Implement all "Future capabilities" mentioned in original README
+  * Interactive mode for template configuration
+  * Advanced scaffolding and project setup automation
+  * Template-driven project generation
+* Update comprehensive documentation with template examples
+* Add template test infrastructure
+* Transform degit from simple cloner to complete scaffolding solution
+
 ## 1.1.1
 
 * Fix GitHub Actions release workflow

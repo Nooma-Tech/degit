@@ -59,4 +59,17 @@ Options:
                      - `git` or `git-ssh`: Clone via SSH (for private repos with SSH keys)
                      - `git-https`: Clone via HTTPS (for private repos with local Git credentials)
 
+## Template Actions
+
+degit supports advanced template processing via `degit.json` actions:
+
+- `prompt`: Interactive prompts for template variables
+- `template`: Text replacement with variables
+- `rename`: File/directory renaming with template support
+- `remove`: File/directory removal
+- `clone`: Clone additional repositories
+- `script`: Execute shell commands
+- `preScript`: Execute commands before other actions
+- `postScript`: Execute commands after all actions
+
 See https://github.com/Nooma-Tech/degit for more information

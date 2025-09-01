@@ -19,6 +19,9 @@ _Requires Node 16 or above, because `async` and `await` are the cat's pyjamas_
 - 🔧 **Build Improvements**: Enhanced build process and CI/CD pipelines
 - 📦 **NPM Organization**: Published under `@nooma-tech` scope
 - ✅ **GitHub Actions**: Modern CI/CD with automated releases
+- 🎯 **Template System**: Interactive prompts, variable substitution, and file operations
+- 🔐 **Enhanced Git Support**: SSH and HTTPS modes for private repositories
+- 📋 **Advanced Actions**: Complete scaffolding solution with template processing
 
 ## Installation
 
@@ -122,6 +125,9 @@ degit --help
 
 - ✅ **Private repositories** - Now supported via `--mode=git-ssh` or `--mode=git-https`
 - ✅ **Multiple Git authentication methods** - SSH keys or HTTPS credentials
+- ✅ **Interactive template system** - Prompts, variables, and dynamic scaffolding
+- ✅ **Advanced file operations** - Template processing, renaming, and content replacement
+- ✅ **Complete scaffolding solution** - Transform templates into ready-to-use projects
 - ✅ **Security updates** - All dependencies updated to secure versions
 - ✅ **Modern tooling** - GitHub Actions CI/CD, Dependabot v2, ESLint 8.x
 
@@ -135,7 +141,8 @@ A few salient differences:
 - Caching and offline support (if you already have a `.tar.gz` file for a specific commit, you don't need to fetch it again).
 - Less to type (`degit user/repo` instead of `git clone --depth 1 git@github.com:user/repo`)
 - Composability via [actions](#actions)
-- Future capabilities — [interactive mode](https://github.com/Rich-Harris/degit/issues/4), [friendly onboarding and postinstall scripts](https://github.com/Rich-Harris/degit/issues/6)
+- ✅ **Interactive mode** — Template prompts and variable collection
+- ✅ **Advanced scaffolding** — Template processing, file renaming, and project setup automation
 
 ## JavaScript API
 
@@ -161,7 +168,169 @@ emitter.clone('path/to/dest').then(() => {
 
 ## Actions
 
-You can manipulate repositories after they have been cloned with _actions_, specified in a `degit.json` file that lives at the top level of the working directory. Currently, there are two actions — `clone` and `remove`. Additional actions may be added in future.
+You can manipulate repositories after they have been cloned with _actions_, specified in a `degit.json` file that lives at the top level of the working directory. The following actions are supported:
+
+### Template Actions (NEW!)
+
+#### prompt
+
+Interactive prompts for collecting template variables:
+
+```json
+{
+  "action": "prompt",
+  "message": "Configure your project",
+  "variables": [
+    {
+      "name": "SERVICE_NAME",
+      "message": "Enter service name:",
+      "type": "input"
+    },
+    {
+      "name": "AUTH_TYPE", 
+      "message": "Choose authentication:",
+      "type": "select",
+      "choices": ["OAuth2", "API Key", "Basic Auth"]
+    }
+  ]
+}
+```
+
+#### template
+
+Text replacement with template variables:
+
+```json
+{
+  "action": "template",
+  "replacements": [
+    {
+      "from": "ExampleService",
+      "to": "{{SERVICE_NAME}}"
+    }
+  ],
+  "extensions": [".js", ".ts", ".json", ".md"]
+}
+```
+
+#### rename
+
+File and directory renaming with template support:
+
+```json
+{
+  "action": "rename", 
+  "files": [
+    {
+      "from": "**/*.tmpl",
+      "to": "**/*"
+    },
+    {
+      "from": "ExampleService.js",
+      "to": "{{SERVICE_NAME}}.js"
+    }
+  ]
+}
+```
+
+## Complete Template Example
+
+Here's a complete example of a `degit.json` for a project template:
+
+```json
+[
+  {
+    "action": "prompt",
+    "message": "🚀 Configure your project",
+    "variables": [
+      {
+        "name": "PROJECT_NAME",
+        "message": "Enter project name:",
+        "type": "input"
+      },
+      {
+        "name": "AUTHOR_NAME", 
+        "message": "Enter author name:",
+        "type": "input",
+        "default": "Your Name"
+      },
+      {
+        "name": "LICENSE_TYPE",
+        "message": "Choose license:",
+        "type": "select",
+        "choices": ["MIT", "Apache-2.0", "GPL-3.0"]
+      }
+    ]
+  },
+  {
+    "action": "template",
+    "replacements": [
+      {
+        "from": "PLACEHOLDER_NAME",
+        "to": "{{PROJECT_NAME}}"
+      },
+      {
+        "from": "PLACEHOLDER_AUTHOR",
+        "to": "{{AUTHOR_NAME}}"
+      }
+    ],
+    "extensions": [".js", ".ts", ".json", ".md", ".yml"]
+  },
+  {
+    "action": "rename",
+    "files": [
+      {
+        "from": "**/*.tmpl",
+        "to": "**/*"
+      },
+      {
+        "from": "src/PLACEHOLDER_NAME.js",
+        "to": "src/{{PROJECT_NAME}}.js"
+      }
+    ]
+  },
+  {
+    "action": "remove",
+    "files": [
+      "degit.json",
+      "template.config.json",
+      ".template"
+    ]
+  }
+]
+```
+
+#### script / preScript / postScript
+
+Execute shell commands during scaffolding:
+
+```json
+{
+  "action": "preScript",
+  "message": "Setting up development environment...",
+  "commands": [
+    "npm install",
+    "git init",
+    "git add .",
+    "git commit -m 'Initial commit for {{PROJECT_NAME}}'"
+  ],
+  "workingDirectory": ".",
+  "failOnError": true
+}
+```
+
+```json
+{
+  "action": "postScript", 
+  "message": "Finalizing project setup...",
+  "commands": [
+    "npm run build",
+    "npm test",
+    "echo 'Project {{PROJECT_NAME}} is ready!'"
+  ],
+  "failOnError": false
+}
+```
 
 ### clone
 

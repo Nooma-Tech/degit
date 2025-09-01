@@ -4,6 +4,8 @@ import tar from 'tar';
 import EventEmitter from 'events';
 import chalk from 'chalk';
 import { rimrafSync } from 'sander';
+import enquirer from 'enquirer';
+import glob from 'tiny-glob/sync.js';
 import {
 	DegitError,
 	exec,
@@ -162,9 +164,16 @@ class TarExtractor {
 class DirectiveProcessor {
 	constructor(degitInstance) {
 		this.degit = degitInstance;
+		this.variables = {};
 		this.actions = {
 			clone: this.handleClone.bind(this),
-			remove: this.handleRemove.bind(this)
+			remove: this.handleRemove.bind(this),
+			template: this.handleTemplate.bind(this),
+			rename: this.handleRename.bind(this),
+			prompt: this.handlePrompt.bind(this),
+			script: this.handleScript.bind(this),
+			preScript: this.handlePreScript.bind(this),
+			postScript: this.handlePostScript.bind(this)
 		};
 	}
 
@@ -226,6 +235,249 @@ class DirectiveProcessor {
 			fs.unlinkSync(filePath);
 			return file;
 		}
+	}
+
+	async handlePrompt(dir, dest, action) {
+		const { variables = [], message } = action;
+
+		if (message) {
+			this.degit._info({ code: 'PROMPT', message });
+		}
+
+		for (const variable of variables) {
+			const prompt = {
+				type: variable.type || 'input',
+				name: 'value',
+				message: variable.message || `Enter value for ${variable.name}:`,
+				initial: variable.default || this.variables[variable.name]
+			};
+
+			if (variable.choices) {
+				prompt.type = 'select';
+				prompt.choices = variable.choices;
+			}
+
+			const response = await enquirer.prompt([prompt]);
+			this.variables[variable.name] = response.value;
+		}
+
+		this.degit._info({
+			code: 'VARIABLES_SET',
+			message: `Variables set: ${Object.keys(this.variables).join(', ')}`
+		});
+	}
+
+	async handleTemplate(dir, dest, action) {
+		const { replacements = [], extensions = ['.js', '.ts', '.json', '.md', '.yml', '.yaml', '.txt'] } = action;
+
+		const processFile = (filePath) => {
+			const ext = path.extname(filePath);
+			if (!extensions.includes(ext)) return;
+
+			try {
+				let content = fs.readFileSync(filePath, 'utf-8');
+				let modified = false;
+
+				for (const replacement of replacements) {
+					const { from, to } = replacement;
+					const processedTo = this.processTemplate(to);
+
+					if (content.includes(from)) {
+						content = content.replace(new RegExp(from, 'g'), processedTo);
+						modified = true;
+					}
+				}
+
+				Object.entries(this.variables).forEach(([key, value]) => {
+					const pattern = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+					if (content.match(pattern)) {
+						content = content.replace(pattern, value);
+						modified = true;
+					}
+				});
+
+				if (modified) {
+					fs.writeFileSync(filePath, content, 'utf-8');
+				}
+			} catch (err) {
+				this.degit._warn({
+					code: 'TEMPLATE_ERROR',
+					message: `Failed to process template in ${filePath}: ${err.message}`
+				});
+			}
+		};
+
+		this.walkDirectory(dest, processFile);
+
+		this.degit._info({
+			code: 'TEMPLATE_PROCESSED',
+			message: `Template processing completed with ${replacements.length} replacement rules`
+		});
+	}
+
+	async handleRename(dir, dest, action) {
+		const { files = [] } = action;
+
+		for (const renameRule of files) {
+			const { from, to } = renameRule;
+			const processedTo = this.processTemplate(to);
+
+			if (from.includes('*')) {
+				this.handleGlobRename(dest, from, processedTo);
+			} else {
+				this.handleSingleRename(dest, from, processedTo);
+			}
+		}
+	}
+
+	handleGlobRename(dest, pattern, toPattern) {
+		const matches = glob(pattern, { cwd: dest, absolute: true });
+
+		matches.forEach(filePath => {
+			const relativePath = path.relative(dest, filePath);
+			const newName = this.applyRenamePattern(relativePath, pattern, toPattern);
+			const newPath = path.join(dest, newName);
+
+			if (newPath !== filePath) {
+				this.moveFile(filePath, newPath);
+			}
+		});
+	}
+
+	handleSingleRename(dest, from, to) {
+		const fromPath = path.resolve(dest, from);
+		const toPath = path.resolve(dest, to);
+
+		if (fs.existsSync(fromPath)) {
+			this.moveFile(fromPath, toPath);
+		}
+	}
+
+	moveFile(fromPath, toPath) {
+		try {
+			mkdirp(path.dirname(toPath));
+			fs.renameSync(fromPath, toPath);
+
+			this.degit._info({
+				code: 'FILE_RENAMED',
+				message: `Renamed: ${path.basename(fromPath)} → ${path.basename(toPath)}`
+			});
+		} catch (err) {
+			this.degit._warn({
+				code: 'RENAME_ERROR',
+				message: `Failed to rename ${fromPath}: ${err.message}`
+			});
+		}
+	}
+
+	applyRenamePattern(filePath, pattern, toPattern) {
+		if (pattern.includes('**/*.tmpl')) {
+			return filePath.replace(/\.tmpl$/, '');
+		}
+
+		return this.processTemplate(toPattern);
+	}
+
+	processTemplate(template) {
+		let processed = template;
+
+		Object.entries(this.variables).forEach(([key, value]) => {
+			processed = processed.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+		});
+
+		return processed;
+	}
+
+	walkDirectory(dir, callback) {
+		const walk = (currentPath) => {
+			const items = fs.readdirSync(currentPath);
+
+			items.forEach(item => {
+				const itemPath = path.join(currentPath, item);
+				const stat = fs.lstatSync(itemPath);
+
+				if (stat.isDirectory()) {
+					walk(itemPath);
+				} else if (stat.isFile()) {
+					callback(itemPath);
+				}
+			});
+		};
+
+		walk(dir);
+	}
+
+	async handleScript(dir, dest, action) {
+		await this.executeScript(dest, action, 'SCRIPT');
+	}
+
+	async handlePreScript(dir, dest, action) {
+		await this.executeScript(dest, action, 'PRE_SCRIPT');
+	}
+
+	async handlePostScript(dir, dest, action) {
+		await this.executeScript(dest, action, 'POST_SCRIPT');
+	}
+
+	async executeScript(dest, action, type) {
+		const { commands = [], message, workingDirectory } = action;
+		const cwd = workingDirectory ? path.resolve(dest, workingDirectory) : dest;
+
+		if (message) {
+			this.degit._info({ code: type, message });
+		}
+
+		for (const command of commands) {
+			const processedCommand = this.processTemplate(command);
+			
+			this.degit._verbose({
+				code: 'EXECUTING_COMMAND',
+				message: `Executing: ${processedCommand} (in ${cwd})`
+			});
+
+			try {
+				const result = await this.executeCommand(processedCommand, cwd);
+				
+				if (result.stdout) {
+					this.degit._verbose({
+						code: 'COMMAND_OUTPUT',
+						message: result.stdout.trim()
+					});
+				}
+
+				this.degit._info({
+					code: 'COMMAND_SUCCESS',
+					message: `✅ ${processedCommand}`
+				});
+			} catch (err) {
+				this.degit._warn({
+					code: 'COMMAND_ERROR',
+					message: `❌ Command failed: ${processedCommand} - ${err.message}`
+				});
+				
+				if (action.failOnError !== false) {
+					throw new DegitError(`Script execution failed: ${processedCommand}`, {
+						code: 'SCRIPT_ERROR',
+						command: processedCommand,
+						original: err
+					});
+				}
+			}
+		}
+	}
+
+	async executeCommand(command, cwd) {
+		return new Promise((resolve, reject) => {
+			const child_process = require('child_process');
+			
+			child_process.exec(command, { cwd }, (error, stdout, stderr) => {
+				if (error) {
+					reject(error);
+					return;
+				}
+				resolve({ stdout, stderr });
+			});
+		});
 	}
 }
 

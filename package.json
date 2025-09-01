@@ -67,7 +67,8 @@
 	},
 	"files": [
 		"help.md",
-		"dist"
+		"dist",
+		"degit"
 	],
 	"husky": {
 		"hooks": {

@@ -40,7 +40,7 @@
 		"registry": "https://registry.npmjs.org/"
 	},
 	"dependencies": {
-		"chalk": "4.1.0",
+		"chalk": "4.1.2",
 		"enquirer": "2.3.6",
 		"fuzzysearch": "1.0.3",
 		"home-or-tmp": "3.0.0",

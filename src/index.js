@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import tar from 'tar';
+import { extract } from 'tar';
 import EventEmitter from 'events';
 import chalk from 'chalk';
 import { rimrafSync } from 'sander';
@@ -150,7 +150,7 @@ class CacheService {
 
 class TarExtractor {
 	static async extract(file, dest, subdir = null) {
-		return tar.extract(
+		return extract(
 			{
 				file,
 				strip: subdir ? subdir.split('/').length : 1,

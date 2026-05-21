@@ -1,5 +1,9 @@
 # @nooma-tech/degit changelog
 
+## 1.5.1
+
+* Bump package version to 1.5.1 for release alignment.
+
 ## 1.5.0
 
 * **SECURITY**: Fix shell command injection in the `src` argument

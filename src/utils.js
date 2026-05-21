@@ -30,9 +30,9 @@ export const tryRequire = (file, opts = {}) => {
 	}
 };
 
-export const exec = command => 
+export const exec = (file, args = []) =>
 	new Promise((resolve, reject) => {
-		child_process.exec(command, (err, stdout, stderr) => {
+		child_process.execFile(file, args, (err, stdout, stderr) => {
 			if (err) {
 				reject(err);
 				return;

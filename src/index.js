@@ -1,11 +1,13 @@
 import fs from 'fs';
 import path from 'path';
+import child_process from 'child_process';
 import { extract } from 'tar';
 import EventEmitter from 'events';
 import chalk from 'chalk';
 import { rimrafSync } from 'sander';
 import enquirer from 'enquirer';
 import glob from 'tiny-glob/sync.js';
+import { parse as shellQuoteParse } from 'shell-quote';
 import {
 	DegitError,
 	exec,
@@ -21,19 +23,40 @@ import {
 const validModes = new Set(['tar', 'git', 'git-ssh', 'git-https']);
 const supportedSites = new Set(['github', 'gitlab', 'bitbucket', 'git.sr.ht']);
 
-export default function degit(src, opts) {
+function degit(src, opts) {
 	return new Degit(src, opts);
 }
 
+const SAFE_IDENTIFIER = /^[A-Za-z0-9._-]+$/;
+
 class RepoParser {
 	static parse(src) {
-		const match = /^(?:(?:https:\/\/)?([^:/]+\.[^:/]+)\/|git@([^:/]+)[:/]|([^/]+):)?([^/\s]+)\/([^/\s#]+)(?:((?:\/[^/\s#]+)+))?(?:\/)?(?:#(.+))?/.exec(src);
+		const [source, refValue = 'HEAD'] = src.split('#', 2);
+		let site = 'github';
+		let remainder = source;
 
-		if (!match) {
-			throw new DegitError(`could not parse ${src}`, { code: 'BAD_SRC' });
+		if (source.startsWith('https://') || source.startsWith('http://')) {
+			const parsed = new URL(source);
+			site = parsed.hostname.replace(/\.(com|org)$/, '');
+			remainder = parsed.pathname.replace(/^\//, '');
+		} else if (source.startsWith('git@')) {
+			const match = /^git@([^:/]+)[:/](.+)$/.exec(source);
+			if (!match) {
+				throw new DegitError(`could not parse ${src}`, { code: 'BAD_SRC' });
+			}
+			site = match[1].replace(/\.(com|org)$/, '');
+			remainder = match[2];
+		} else if (source.startsWith('git.sr.ht/')) {
+			site = 'git.sr.ht';
+			remainder = source.slice('git.sr.ht/'.length);
+		} else {
+			const colonIndex = source.indexOf(':');
+			const slashIndex = source.indexOf('/');
+			if (colonIndex !== -1 && (slashIndex === -1 || colonIndex < slashIndex)) {
+				site = source.slice(0, colonIndex);
+				remainder = source.slice(colonIndex + 1);
+			}
 		}
-
-		const site = (match[1] || match[2] || match[3] || 'github').replace(/\.(com|org)$/, '');
 
 		if (!supportedSites.has(site)) {
 			throw new DegitError(`degit supports GitHub, GitLab, Sourcehut and BitBucket`, {
@@ -41,12 +64,28 @@ class RepoParser {
 			});
 		}
 
-		const user = match[4];
-		const name = match[5].replace(/\.git$/, '');
-		const subdir = match[6];
-		const ref = match[7] || 'HEAD';
+		const [user, rawName, ...subdirParts] = remainder.split('/').filter(Boolean);
+		if (!user || !rawName) {
+			throw new DegitError(`could not parse ${src}`, { code: 'BAD_SRC' });
+		}
 
-		const domain = `${site}.${site === 'bitbucket' ? 'org' : site === 'git.sr.ht' ? '' : 'com'}`;
+		if (!SAFE_IDENTIFIER.test(user)) {
+			throw new DegitError(`invalid characters in user "${user}"`, { code: 'BAD_SRC' });
+		}
+		const name = rawName.replace(/\.git$/, '');
+		if (!SAFE_IDENTIFIER.test(name)) {
+			throw new DegitError(`invalid characters in repo "${name}"`, { code: 'BAD_SRC' });
+		}
+		for (const part of subdirParts) {
+			if (!SAFE_IDENTIFIER.test(part)) {
+				throw new DegitError(`invalid characters in subdir "${part}"`, { code: 'BAD_SRC' });
+			}
+		}
+
+		const subdir = subdirParts.length > 0 ? `/${subdirParts.join('/')}` : undefined;
+		const ref = refValue;
+
+		const domain = site === 'git.sr.ht' ? 'git.sr.ht' : site === 'bitbucket' ? `${site}.org` : `${site}.com`;
 		const url = `https://${domain}/${user}/${name}`;
 		const ssh = `git@${domain}:${user}/${name}`;
 		const mode = supportedSites.has(site) ? 'tar' : 'git';
@@ -58,7 +97,7 @@ class RepoParser {
 class RefService {
 	static async fetchRefs(repo) {
 		try {
-			const { stdout } = await exec(`git ls-remote ${repo.url}`);
+			const { stdout } = await exec('git', ['ls-remote', repo.url]);
 
 			return stdout
 				.split('\n')
@@ -184,7 +223,13 @@ class DirectiveProcessor {
 			this.degit._hasStashed = true;
 		}
 
-		const opts = { force: true, cache: action.cache, verbose: action.verbose };
+		const opts = {
+			force: true,
+			cache: action.cache,
+			verbose: action.verbose,
+			allowScripts: this.degit.allowScripts,
+			yes: this.degit.yes
+		};
 		const d = degit(action.src, opts);
 
 		d.on('info', event => {
@@ -500,20 +545,58 @@ class DirectiveProcessor {
 		const { commands = [], message, workingDirectory } = action;
 		const cwd = workingDirectory ? path.resolve(dest, workingDirectory) : dest;
 
+		if (!this.degit.allowScripts) {
+			this.degit._warn({
+				code: 'SCRIPTS_DISABLED',
+				message: `${type} skipped (${commands.length} command${commands.length === 1 ? '' : 's'}): script execution is off by default. Re-run with --allow-scripts to enable, after auditing the template.`
+			});
+			return;
+		}
+
 		if (message) {
 			this.degit._info({ code: type, message });
 		}
 
 		for (const command of commands) {
-			const processedCommand = this.processTemplate(command);
+			let argv;
+			try {
+				argv = this.resolveCommandArgv(command);
+			} catch (err) {
+				this.degit._warn({
+					code: err.code || 'COMMAND_ERROR',
+					message: `❌ ${err.message}`
+				});
+				if (action.failOnError !== false) {
+					throw err;
+				}
+				continue;
+			}
+
+			const display = argv.map(a => (/\s/.test(a) ? JSON.stringify(a) : a)).join(' ');
 
 			this.degit._verbose({
 				code: 'EXECUTING_COMMAND',
-				message: `Executing: ${processedCommand} (in ${cwd})`
+				message: `Executing: ${display} (in ${cwd})`
 			});
 
+			if (!this.degit.yes) {
+				const { confirmed } = await enquirer.prompt({
+					type: 'confirm',
+					name: 'confirmed',
+					message: `Run "${display}" in ${cwd}?`,
+					initial: false
+				});
+				if (!confirmed) {
+					this.degit._warn({
+						code: 'COMMAND_SKIPPED',
+						message: `Skipped by user: ${display}`
+					});
+					continue;
+				}
+			}
+
 			try {
-				const result = await this.executeCommand(processedCommand, cwd);
+				const result = await this.executeCommand(argv, cwd);
 
 				if (result.stdout) {
 					this.degit._verbose({
@@ -524,18 +607,18 @@ class DirectiveProcessor {
 
 				this.degit._info({
 					code: 'COMMAND_SUCCESS',
-					message: `✅ ${processedCommand}`
+					message: `✅ ${display}`
 				});
 			} catch (err) {
 				this.degit._warn({
 					code: 'COMMAND_ERROR',
-					message: `❌ Command failed: ${processedCommand} - ${err.message}`
+					message: `❌ Command failed: ${display} - ${err.message}`
 				});
 
 				if (action.failOnError !== false) {
-					throw new DegitError(`Script execution failed: ${processedCommand}`, {
+					throw new DegitError(`Script execution failed: ${display}`, {
 						code: 'SCRIPT_ERROR',
-						command: processedCommand,
+						command: display,
 						original: err
 					});
 				}
@@ -543,11 +626,44 @@ class DirectiveProcessor {
 		}
 	}
 
-	async executeCommand(command, cwd) {
-		return new Promise((resolve, reject) => {
-			const child_process = require('child_process');
+	resolveCommandArgv(command) {
+		if (command && typeof command === 'object' && typeof command.file === 'string') {
+			const args = Array.isArray(command.args) ? command.args : [];
+			return [
+				this.processTemplate(command.file),
+				...args.map(a => this.processTemplate(String(a)))
+			];
+		}
 
-			child_process.exec(command, { cwd }, (error, stdout, stderr) => {
+		if (typeof command !== 'string') {
+			throw new DegitError(
+				`unsupported command (expected string or {file, args}, got ${typeof command})`,
+				{ code: 'BAD_COMMAND' }
+			);
+		}
+
+		const parts = shellQuoteParse(command);
+		const argv = [];
+		for (const part of parts) {
+			if (typeof part !== 'string') {
+				const op = typeof part === 'object' && part && 'op' in part ? part.op : JSON.stringify(part);
+				throw new DegitError(
+					`shell operators are not supported in commands (got "${op}"). Use the {file, args} schema for complex commands.`,
+					{ code: 'UNSUPPORTED_SHELL_OPERATOR' }
+				);
+			}
+			argv.push(part);
+		}
+		if (argv.length === 0) {
+			throw new DegitError('empty command', { code: 'BAD_COMMAND' });
+		}
+		return argv.map(part => this.processTemplate(part));
+	}
+
+	async executeCommand(argv, cwd) {
+		const [file, ...args] = argv;
+		return new Promise((resolve, reject) => {
+			child_process.execFile(file, args, { cwd }, (error, stdout, stderr) => {
 				if (error) {
 					reject(error);
 					return;
@@ -558,6 +674,11 @@ class DirectiveProcessor {
 	}
 }
 
+degit.RepoParser = RepoParser;
+degit.DirectiveProcessor = DirectiveProcessor;
+
+export default degit;
+
 class Degit extends EventEmitter {
 	constructor(src, opts = {}) {
 		super();
@@ -566,6 +687,8 @@ class Degit extends EventEmitter {
 		this.cache = opts.cache;
 		this.force = opts.force;
 		this.verbose = opts.verbose;
+		this.allowScripts = opts.allowScripts === true;
+		this.yes = opts.yes === true;
 		this.proxy = process.env.https_proxy;
 
 		this.repo = RepoParser.parse(src);
@@ -763,13 +886,13 @@ class Degit extends EventEmitter {
 	}
 
 	async cloneWithGitSsh(dir, dest) {
-		await exec(`git clone ${this.repo.ssh} ${dest}`);
-		await exec(`rm -rf ${path.resolve(dest, '.git')}`);
+		await exec('git', ['clone', this.repo.ssh, dest]);
+		rimrafSync(path.resolve(dest, '.git'));
 	}
 
 	async cloneWithGitHttps(dir, dest) {
-		await exec(`git clone ${this.repo.url} ${dest}`);
-		await exec(`rm -rf ${path.resolve(dest, '.git')}`);
+		await exec('git', ['clone', this.repo.url, dest]);
+		rimrafSync(path.resolve(dest, '.git'));
 	}
 
 	_info(info) {

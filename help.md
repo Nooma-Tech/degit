@@ -49,15 +49,20 @@ unless the `--force` option is used.
 
 Options:
 
-  `--help`,    `-h`  Show this message
-  `--cache`,   `-c`  Only use local cache
-  `--force`,   `-f`  Allow non-empty destination directory
-  `--verbose`, `-v`  Extra logging
-  `--mode=`,   `-m=` Force the mode by which degit clones the repo
-                     Valid options are:
-                     - `tar` (default): Download via tarball
-                     - `git` or `git-ssh`: Clone via SSH (for private repos with SSH keys)
-                     - `git-https`: Clone via HTTPS (for private repos with local Git credentials)
+  `--help`,          `-h`  Show this message
+  `--cache`,         `-c`  Only use local cache
+  `--force`,         `-f`  Allow non-empty destination directory
+  `--verbose`,       `-v`  Extra logging
+  `--mode=`,         `-m=` Force the mode by which degit clones the repo
+                           Valid options are:
+                           - `tar` (default): Download via tarball
+                           - `git` or `git-ssh`: Clone via SSH (for private repos with SSH keys)
+                           - `git-https`: Clone via HTTPS (for private repos with local Git credentials)
+  `--allow-scripts`        Enable execution of `script`/`preScript`/`postScript`
+                           actions from the template. Off by default — review the
+                           template before enabling.
+  `--yes`,           `-y`  Skip the per-command confirmation prompt when running
+                           with `--allow-scripts`. Use only in trusted CI flows.
 
 ## Template Actions
 
@@ -68,8 +73,28 @@ degit supports advanced template processing via `degit.json` actions:
 - `rename`: File/directory renaming with template support
 - `remove`: File/directory removal
 - `clone`: Clone additional repositories
-- `script`: Execute shell commands
-- `preScript`: Execute commands before other actions
-- `postScript`: Execute commands after all actions
+- `script`: Execute commands (requires `--allow-scripts`)
+- `preScript`: Execute commands before other actions (requires `--allow-scripts`)
+- `postScript`: Execute commands after all actions (requires `--allow-scripts`)
+
+### Script command schema
+
+Commands are always invoked via `execFile` — there is no shell, so metacharacters
+in interpolated `{{vars}}` are treated as literal argv values, not shell syntax.
+
+```json
+{
+  "action": "script",
+  "commands": [
+    { "file": "npm", "args": ["install", "{{packageName}}"] },
+    "git init"
+  ]
+}
+```
+
+The `{file, args}` object schema is preferred. Legacy string commands are split
+by whitespace (with quoting via `shell-quote`); shell operators (`;`, `|`, `&`,
+`>`, `<`, etc.) are rejected — use the object schema for anything beyond a flat
+command + arguments.
 
 See https://github.com/Nooma-Tech/degit for more information

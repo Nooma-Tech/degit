@@ -13,9 +13,10 @@ const parseArgs = () => mri(process.argv.slice(2), {
 		f: 'force',
 		c: 'cache',
 		v: 'verbose',
-		m: 'mode'
+		m: 'mode',
+		y: 'yes'
 	},
-	boolean: ['force', 'cache', 'verbose']
+	boolean: ['force', 'cache', 'verbose', 'allow-scripts', 'yes']
 });
 
 const formatHelp = content =>
@@ -169,7 +170,8 @@ const setupEventHandlers = degitInstance => {
 };
 
 const run = (src, dest, args) => {
-	const degitInstance = degit(src, args);
+	const opts = { ...args, allowScripts: args['allow-scripts'] === true };
+	const degitInstance = degit(src, opts);
 
 	setupEventHandlers(degitInstance);
 

@@ -61,7 +61,7 @@
 		"eslint-plugin-import": "^2.29.1",
 		"husky": "6.0.0",
 		"lint-staged": "10.5.4",
-		"mocha": "^10.6.0",
+		"mocha": "11.3.0",
 		"prettier": "^3.2.5",
 		"rimraf": "3.0.2",
 		"rollup": "^2.79.2",
@@ -86,5 +86,8 @@
 			"prettier --write",
 			"git add"
 		]
+	},
+	"overrides": {
+		"serialize-javascript": "7.0.5"
 	}
 }

@@ -1,6 +1,6 @@
 # @nooma-tech/degit changelog
 
-## 1.4.3
+## 1.5.0
 
 * **SECURITY**: Fix shell command injection in the `src` argument
   (reported by Jaeyoung Yun — GitHub [@JAE0Y2N](https://github.com/JAE0Y2N) — 2026-05-20).

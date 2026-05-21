@@ -1,6 +1,6 @@
 {
 	"name": "@nooma-tech/degit",
-	"version": "1.4.3",
+	"version": "1.5.0",
 	"engines": {
 		"node": ">=22.0.0"
 	},
@@ -29,7 +29,7 @@
 	"author": "Rich Harris",
 	"contributors": [
 		"Nooma Tech",
-		"Jaeyoung Yun (https://github.com/JAE0Y2N) — security disclosure of shell injection in src argument (1.4.3)"
+		"Jaeyoung Yun (https://github.com/JAE0Y2N) — security disclosure of shell injection in src argument (1.5.0)"
 	],
 	"license": "MIT",
 	"bugs": {

@@ -195,6 +195,143 @@ describe('degit', function() {
 		// Note: git-ssh and git modes require SSH keys configured
 		// These are tested manually and work when proper SSH setup is available
 	});
+
+	describe('shell injection (CVE)', () => {
+		const sandbox = path.resolve('.tmp/sandbox');
+
+		function tryRun(cmd, cwd) {
+			return new Promise(resolve => {
+				child_process.exec(cmd, { cwd }, () => resolve());
+			});
+		}
+
+		beforeEach(async () => {
+			await rimraf('.tmp');
+			fs.mkdirSync(sandbox, { recursive: true });
+		});
+
+		it('does not interpret shell metacharacters in src (mode=git)', async () => {
+			const marker = path.join(sandbox, 'PWN_GIT');
+			const src = `github:foo/bar;:>PWN_GIT`;
+			await tryRun(`node ${degitPath} '${src}' --mode=git --force out`, sandbox);
+			assert.ok(
+				!fs.existsSync(marker),
+				`shell injection succeeded: ${marker} was created`
+			);
+		});
+
+		it('does not interpret shell metacharacters in src (mode=git-https)', async () => {
+			const marker = path.join(sandbox, 'PWN_HTTPS');
+			const src = `github:foo/bar;:>PWN_HTTPS`;
+			await tryRun(`node ${degitPath} '${src}' --mode=git-https --force out`, sandbox);
+			assert.ok(
+				!fs.existsSync(marker),
+				`shell injection succeeded: ${marker} was created`
+			);
+		});
+
+		it('does not interpret shell metacharacters in src (mode=tar, via ls-remote)', async () => {
+			const marker = path.join(sandbox, 'PWN_TAR');
+			const src = `github:foo/bar;:>PWN_TAR`;
+			await tryRun(`node ${degitPath} '${src}' --force out`, sandbox);
+			assert.ok(
+				!fs.existsSync(marker),
+				`shell injection succeeded: ${marker} was created`
+			);
+		});
+
+		it('rejects user names with shell metacharacters at parse time', async () => {
+			const { RepoParser } = degit;
+			assert.throws(
+				() => RepoParser.parse('foo;rm/bar'),
+				/invalid characters in user/
+			);
+			assert.throws(
+				() => RepoParser.parse('foo/bar`whoami`'),
+				/invalid characters in repo/
+			);
+			assert.throws(
+				() => RepoParser.parse('foo/bar/sub$dir'),
+				/invalid characters in subdir/
+			);
+		});
+	});
+
+	describe('script hardening', () => {
+		const sandbox = path.resolve('.tmp/sandbox');
+		const dest = path.join(sandbox, 'dest');
+
+		beforeEach(async () => {
+			await rimraf('.tmp');
+			fs.mkdirSync(dest, { recursive: true });
+		});
+
+		function makeProcessor(opts = {}) {
+			const { DirectiveProcessor } = degit;
+			const emitted = [];
+			const fakeDegit = {
+				_info: e => emitted.push(['info', e]),
+				_warn: e => emitted.push(['warn', e]),
+				_verbose: e => emitted.push(['verbose', e]),
+				_hasStashed: false,
+				allowScripts: opts.allowScripts === true,
+				yes: opts.yes === true
+			};
+			return { proc: new DirectiveProcessor(fakeDegit), emitted };
+		}
+
+		it('skips script action without --allow-scripts', async () => {
+			const marker = path.join(sandbox, 'SCRIPT_PWN');
+			const { proc, emitted } = makeProcessor({ allowScripts: false });
+			await proc.handleScript(dest, dest, {
+				commands: [{ file: 'touch', args: [marker] }]
+			});
+			assert.ok(!fs.existsSync(marker), 'script should not have run');
+			assert.ok(
+				emitted.some(([, e]) => e.code === 'SCRIPTS_DISABLED'),
+				'expected SCRIPTS_DISABLED warning'
+			);
+		});
+
+		it('runs argv-list command with --allow-scripts --yes', async () => {
+			const marker = path.join(sandbox, 'SCRIPT_OK');
+			const { proc } = makeProcessor({ allowScripts: true, yes: true });
+			await proc.handleScript(dest, dest, {
+				commands: [{ file: 'touch', args: [marker] }]
+			});
+			assert.ok(fs.existsSync(marker), 'argv-list command should run');
+		});
+
+		it('treats interpolated prompt vars as argv literals (no shell parsing)', async () => {
+			const marker = path.join(sandbox, 'PROMPT_PWN');
+			const { proc } = makeProcessor({ allowScripts: true, yes: true });
+			proc.variables = { evil: `foo;touch ${marker}` };
+			await proc.handleScript(dest, dest, {
+				commands: ['echo {{evil}}']
+			});
+			assert.ok(
+				!fs.existsSync(marker),
+				'interpolated var must not execute as shell — it should be an argv literal'
+			);
+		});
+
+		it('rejects legacy string commands containing shell operators', async () => {
+			const marker = path.join(sandbox, 'OPERATOR_PWN');
+			const { proc, emitted } = makeProcessor({ allowScripts: true, yes: true });
+			await proc.handleScript(dest, dest, {
+				commands: [`echo hi; touch ${marker}`],
+				failOnError: false
+			});
+			assert.ok(
+				!fs.existsSync(marker),
+				'shell operator ";" must be rejected, not executed'
+			);
+			assert.ok(
+				emitted.some(([, e]) => e.code === 'UNSUPPORTED_SHELL_OPERATOR' || e.code === 'COMMAND_ERROR'),
+				'expected error about unsupported operator'
+			);
+		});
+	});
 });
 
 function read(file) {

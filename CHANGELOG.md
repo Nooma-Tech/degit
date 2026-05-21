@@ -1,5 +1,36 @@
 # @nooma-tech/degit changelog
 
+## 1.4.3
+
+* **SECURITY**: Fix shell command injection in the `src` argument
+  (reported by Jaeyoung Yun — GitHub [@JAE0Y2N](https://github.com/JAE0Y2N) — 2026-05-20).
+  * The internal `exec` wrapper used `child_process.exec`, which spawns
+    `/bin/sh -c <command>`. Shell metacharacters in `repo.url`, `repo.ssh`
+    and `dest` (built from the `src` CLI argument) were therefore parsed by
+    the shell, allowing arbitrary command execution whenever an attacker
+    could influence `src` (scaffolding pipelines, IDE extensions, tutorials).
+  * Switched `exec` to `child_process.execFile` with an argv list — no shell
+    is involved, so metacharacters in any value are now treated as literal
+    arguments.
+  * Replaced the post-clone `rm -rf` invocation with `rimrafSync` (Node API),
+    removing another shell sink.
+* **SECURITY (defense in depth)**: Rewrote `RepoParser.parse` without the
+  catch-all regex and added a strict `^[A-Za-z0-9._-]+$` allowlist for
+  `user`, `name` and each subdir segment. Malformed sources are rejected
+  before any value reaches a downstream consumer.
+* **SECURITY (defense in depth)**: Hardened `script`/`preScript`/`postScript`
+  actions.
+  * Commands are now executed via `execFile` with an argv list — no shell.
+  * New schema `{ "file": "npm", "args": ["install", "{{name}}"] }` is the
+    recommended form; interpolated `{{vars}}` are always argv literals.
+  * Legacy string commands (`"npm install"`) are parsed with `shell-quote`
+    into an argv array; shell operators (`;`, `|`, `&`, `>`, `<`, `` ` ``,
+    `$()`) are **rejected** rather than executed.
+  * Scripts are **off by default**. Pass `--allow-scripts` to opt in after
+    auditing the template.
+  * With `--allow-scripts`, degit prompts for confirmation before each
+    command. Use `--yes` / `-y` to skip the prompt in trusted CI flows.
+
 ## 1.2.1
 
 * Add comprehensive npx usage documentation
